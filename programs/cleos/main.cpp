@@ -2230,7 +2230,7 @@ void get_account( const string& accountName, const string& coresym, bool json_fo
             auto net_others = net_total - net_own;
 
             std::cout << indent << "staked:" << std::setw(20) << net_own
-                      << std::string(11, ' ') << "(my custom cleos build)" << std::endl
+                      << std::string(11, ' ') << "(total stake delegated from account to self)" << std::endl
                       << indent << "delegated:" << std::setw(17) << net_others
                       << std::string(11, ' ') << "(total staked delegated to account from others)" << std::endl;
          }
