@@ -126,7 +126,9 @@ void apply_eosio_setcode(apply_context& context) {
 
    auto& db = context.db;
    auto  act = context.get_action().data_as<setcode>();
+   check_account_mutable(context, act.account);
    context.require_authorization(act.account);
+
 
    EOS_ASSERT( act.vmtype == 0, invalid_contract_vm_type, "code should be 0" );
    EOS_ASSERT( act.vmversion == 0, invalid_contract_vm_version, "version should be 0" );
@@ -198,7 +200,7 @@ void apply_eosio_setcode(apply_context& context) {
 void apply_eosio_setabi(apply_context& context) {
    auto& db  = context.db;
    auto  act = context.get_action().data_as<setabi>();
-
+   check_account_mutable(context, act.account);
    context.require_authorization(act.account);
 
    const auto& account = db.get<account_object,by_name>(act.account);
@@ -229,6 +231,7 @@ void apply_eosio_setabi(apply_context& context) {
 void apply_eosio_updateauth(apply_context& context) {
 
    auto update = context.get_action().data_as<updateauth>();
+   check_account_mutable(context, update.account);
    context.require_authorization(update.account); // only here to mark the single authority on this action as used
 
    auto& authorization = context.control.get_mutable_authorization_manager();
@@ -294,6 +297,7 @@ void apply_eosio_deleteauth(apply_context& context) {
 //   context.require_write_lock( config::eosio_auth_scope );
 
    auto remove = context.get_action().data_as<deleteauth>();
+   check_account_mutable(context, remove.account);
    context.require_authorization(remove.account); // only here to mark the single authority on this action as used
 
    EOS_ASSERT(remove.permission != config::active_name, action_validate_exception, "Cannot delete active authority");
@@ -328,6 +332,7 @@ void apply_eosio_linkauth(apply_context& context) {
    try {
       EOS_ASSERT(!requirement.requirement.empty(), action_validate_exception, "Required permission cannot be empty");
 
+      check_account_mutable(context, requirement.account);
       context.require_authorization(requirement.account); // only here to mark the single authority on this action as used
 
       auto& db = context.db;
@@ -383,6 +388,7 @@ void apply_eosio_unlinkauth(apply_context& context) {
    auto& db = context.db;
    auto unlink = context.get_action().data_as<unlinkauth>();
 
+   check_account_mutable(context, unlink.account);
    context.require_authorization(unlink.account); // only here to mark the single authority on this action as used
 
    auto link_key = boost::make_tuple(unlink.account, unlink.code, unlink.type);
@@ -403,6 +409,16 @@ void apply_eosio_canceldelay(apply_context& context) {
    const auto& trx_id = cancel.trx_id;
 
    context.cancel_deferred_transaction(transaction_id_to_sender_id(trx_id), account_name());
+}
+
+void check_account_mutable(apply_context& context, const name& owner) {
+   auto& db = context.db;
+   auto freeze_account = db.find<account_object, by_name>(name("eosio.freeze"));
+   if(freeze_account != nullptr) {
+      int iterator = context.db_find_i64(name("eosio.freeze"), name("eosio.freeze"), name("frozenaccs"), owner.to_uint64_t());
+      // check for an invalid iterator, i.e., not in table
+      EOS_ASSERT( iterator < 0, action_validate_exception, "account is immutable" );
+   }
 }
 
 } } // namespace eosio::chain
